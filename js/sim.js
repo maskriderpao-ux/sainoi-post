@@ -3,7 +3,7 @@
 (function (g) {
 'use strict';
 const W = 360, H = 448, CAP = 2, DAY_T = 150, TRUCK_WAIT = 38, TRUCK_GAP = 14, BQ_MAX = 4, LOBBY_MAX = 14;
-const FY = 296, SY = 148;               /* y ด้านบนของห้องหน้าร้าน / ห้องคัดแยก (ท่ารถเริ่มที่ 0) */
+const FY = 284, SY = 148;               /* y ด้านบนของห้องหน้าร้าน / ห้องคัดแยก (ท่ารถเริ่มที่ 0) */
 const VMAX = 80, ACC = 800, DEC = 1600;
 const NAME = { E: 'EMS', R: 'ลงทะเบียน', N: 'ธรรมดา' }, FEE = { E: 60, R: 40, N: 25 };
 const CART = [1, 2, 4, 6], WRAPT = [2.4, 1.9, 1.5, 1.1], SERVT = [1.5, 1.2, 0.9, 0.65];
@@ -24,8 +24,8 @@ const CHARS = [
 const FIX = { ac: 150, lk: 80 }, FINE = 100, SAT_WARN = 70, SAT_OVER = 50, SAT_MISS = 6, LEAK_R = 20;
 /* ทิ้งของลงพื้น: ค่าปรับ (฿) ที่ห้องคัดแยก/ท่ารถ · ต่อหน้าลูกค้า = ปรับเงินมากกว่า + ความพอใจลด · max = ของบนพื้นได้พร้อมกันกี่ชิ้น · FR = ระยะเก็บของจากพื้น */
 const DROP = { room: 10, shop: 25, sat: 3, max: 8 }, FR = 14;
-/* สายพานตรง: เครื่องรับฝากแต่ละตัว (y 361) → ทะลุช่องผนัง → โต๊ะปลายสายพานในห้องคัดแยก (y 284) */
-const BELT = { Y0: 361, Y1: 284, SP: 42 }; BELT.L = BELT.Y0 - BELT.Y1;
+/* สายพานตรง: เครื่องรับฝากแต่ละตัว (y 361) → ทะลุช่องผนัง → โต๊ะปลายสายพานในห้องคัดแยก (y 272) */
+const BELT = { Y0: 361, Y1: 272, SP: 50 }; BELT.L = BELT.Y0 - BELT.Y1;
 const UPG = [
   { id: 'ws', ic: '🎀', name: 'อุปกรณ์ห่อ', desc: 'ห่อพัสดุเร็วขึ้น', cost: [100, 200, 350] },
   { id: 'cs', ic: '💻', name: 'คอมรับฝาก', desc: 'รับฝากเร็วขึ้น', cost: [100, 200, 350] },
@@ -35,25 +35,37 @@ const UPG = [
   { id: 'bags', ic: '🛍️', name: 'ถุงคัดแยกเพิ่ม', desc: 'ถุงคัดแยกประเภทละ 2 ถุง', cost: [300] },
   { id: 'cart', ic: '🛒', name: 'รถเข็น', desc: 'รถเข็นของกลาง จอดไว้ตรงไหนก็ได้ ใครก็ใช้ได้ ใส่ถุงเต็มหลายใบแล้วเข็นไปขึ้นรถ', cost: [200, 350, 550] }
 ];
-/* พิกัดโลก: ท่ารถ y 0–148 · ห้องคัดแยก y 148–296 · หน้าร้าน y 296–448 */
+/* พิกัดโลก: ท่ารถ y 0–148 · ห้องคัดแยก y 148–284 · หน้าร้าน y 284–448 */
 const ST = [
   { id: 'box', k: 'box', r: [8, 326, 24, 18] },
   /* โต๊ะ/เคาน์เตอร์กว้างน้อยลงนิดหน่อย (ช่องว่างระหว่างกัน 20) และเลื่อนลง 12 ทำให้ทางเดินหลังโต๊ะกว้างขึ้น */
   { id: 'w0', k: 'wrap', i: 0, r: [52, 360, 24, 16] }, { id: 'w1', k: 'wrap', i: 1, r: [96, 360, 24, 16] }, { id: 'w2', k: 'wrap', i: 2, r: [140, 360, 24, 16] },
   { id: 'c0', k: 'cnt', i: 0, r: [192, 360, 20, 16] }, { id: 'c1', k: 'cnt', i: 1, r: [232, 360, 20, 16] }, { id: 'c2', k: 'cnt', i: 2, r: [272, 360, 20, 16] },
-  { id: 'ac', k: 'ac', r: [170, 324, 16, 8] },
-  { id: 'bl0', k: 'belt', i: 0, r: [191, 268, 22, 28] }, { id: 'bl1', k: 'belt', i: 1, r: [231, 268, 22, 28] }, { id: 'bl2', k: 'belt', i: 2, r: [271, 268, 22, 28] },
+  { id: 'ac', k: 'ac', r: [170, 312, 16, 8] },
+  { id: 'bl0', k: 'belt', i: 0, r: [191, 256, 22, 28] }, { id: 'bl1', k: 'belt', i: 1, r: [231, 256, 22, 28] }, { id: 'bl2', k: 'belt', i: 2, r: [271, 256, 22, 28] },
   { id: 'bE', k: 'bag', t: 'E', j: 0, r: [104, 184, 16, 18] }, { id: 'bE2', k: 'bag', t: 'E', j: 1, r: [128, 184, 16, 18] },
   { id: 'bR', k: 'bag', t: 'R', j: 0, r: [176, 184, 16, 18] }, { id: 'bR2', k: 'bag', t: 'R', j: 1, r: [200, 184, 16, 18] },
   { id: 'bN', k: 'bag', t: 'N', j: 0, r: [248, 184, 16, 18] }, { id: 'bN2', k: 'bag', t: 'N', j: 1, r: [272, 184, 16, 18] },
   { id: 'tk', k: 'truck', r: [204, 62, 8, 32] }
 ];
-const WALLS = [[0, 0, W, 36], [0, 148, 322, 36], [346, 148, 14, 36], [0, 296, 322, 30], [346, 296, 14, 30], [0, 442, W, 10]];
+const WALLS = [[0, 0, W, 36], [0, 148, 322, 36], [346, 148, 14, 36], [0, 284, 322, 30], [346, 284, 14, 30], [0, 442, W, 10]];
 const WSLOT = [[64, 404], [108, 404], [152, 404]], CSLOT = [[202, 404], [242, 404], [282, 404]], DOOR = [24, 474];
 const SPAWN = [[56, 342], [96, 342], [128, 342], [160, 342]];
 const QS = []; for (const y of [424, 438]) for (let x = 48; x <= 336; x += 24) QS.push([x, y]);
 QS.sort((a, b) => Math.hypot(a[0] - 180, a[1] - 404) - Math.hypot(b[0] - 180, b[1] - 404));
 const r1 = v => Math.round(v * 10) / 10, rnd = n => (Math.random() * n) | 0;
+/* ลูกค้าพิเศษ (ผู้หญิงทั้งหมด): gik = กุ๊กกิ๊ก คุยโทรศัพท์เสียงดัง (ลูกค้าอื่นหมดความอดทนไวขึ้น 1.7 เท่า) · yok = เจ๊หยก วีไอพี ทิปสองเท่า
+   meni = เมนี่ แอบเข้าห้องคัดแยกไปเซลฟี่ (ทุก 2 วิ โดนหัก ฿SELFIE) · t1/t2/t3 = เมียน้อย/ชู้รัก/กิ๊กของต้า เดินหา "ต้าอยู่ไหน" ไล่ได้เฉพาะต้า ไม่ไล่ใน 30 วิ ความพอใจ −10% */
+const SPN = { gik: 'กุ๊กกิ๊ก', yok: 'เจ๊หยก', meni: 'เมนี่', t1: 'เมียน้อยต้า', t2: 'ชู้รักต้า', t3: 'กิ๊กต้า' };
+const SELFIE = 10, SP_LOUD = 1.7, TA_WAIT = 30, TA_SAT = 10, SHOO_R = 20;
+const isTa = p => !!p && chr(p).id === 'ta';
+const SHOO = {
+  gik: ['เชิญไปคุยโทรศัพท์เสียงดังที่อื่นนะ', 'ไม่ต้องไล่ฉันไปเอง'],
+  meni: ['เข้ามาไม่ได้ เชิญออกไปนะ', 'อะไร ชั้นแค่อยากเซลฟี่'],
+  t1: ['ผมไม่รู้จักคุณนะ เชิญกลับไปเถอะ', 'ฮึ! งั้นไปก็ได้'], t2: ['ผมไม่รู้จักคุณนะ เชิญกลับไปเถอะ', 'ใจร้ายที่สุดเลยต้า!'], t3: ['ผมไม่รู้จักคุณนะ เชิญกลับไปเถอะ', 'ไม่เจอกันอีกแล้วนะ!']
+};
+const LOBBYP = [[70, 400], [110, 412], [150, 400], [190, 414], [230, 400], [270, 412], [310, 402], [60, 430], [180, 432], [300, 430]];
+const ROOMP = [[70, 214], [120, 238], [180, 222], [230, 240], [280, 218], [150, 250], [210, 206], [90, 252]];
 const isBags = h => !!h && /^[ern]+$/.test(h), isParcel = h => !!h && h.length === 1 && 'ERN'.includes(h);
 let G = null, emit = () => {};
 let sel = [0, 0, 0, 0];   /* ตัวละครที่แต่ละช่องผู้เล่นเลือก (ค้างไว้ข้ามรอบ/ข้ามการเริ่มใหม่) */
@@ -127,7 +139,8 @@ function steer(p, ix, iy, dt) {
   if (m > 0.2 && Math.abs(ix) > 0.15) p.f = ix < 0 ? -1 : 1;
   p.mv = Math.hypot(p.vx, p.vy) > 8 ? 1 : 0;
 }
-const pop = (x, y, t, c) => emit({ k: 'pop', x, y, t, c });
+const pop = (x, y, t, c, d) => emit({ k: 'pop', x, y, t, c, d });
+const ban = (t, c) => emit({ k: 'ban', t, c });
 const snd = n => emit({ k: 'snd', n });
 const tev = n => emit({ k: 'tut', n });
 const toast = (t, c) => emit({ k: 'toast', t, c });
@@ -147,9 +160,22 @@ function genEvents() {
   let n = Math.random() < Math.min(0.9, 0.25 + 0.07 * d) ? 1 : 0;
   if (d >= 6 && Math.random() < 0.45) n++; if (d >= 10 && Math.random() < 0.4) n++;
   for (let i = 0; i < n; i++) q.push({ at: 15 + Math.random() * (DAY_T - 50), k: Math.random() < 0.42 ? 'ac' : 'lk' });
+  /* ลูกค้าพิเศษ: เริ่มวันที่ 3 · ทุก 3 วัน (3–5, 6–8, ...) สุ่มมาอย่างละ 1 ครั้งในวันใดวันหนึ่งของช่วงนั้น
+     สายทั่วไป (กุ๊กกิ๊ก/เจ๊หยก/เมนี่) สุ่มมา 1 คน ไม่ซ้ำคนเดิมที่เพิ่งมาเมื่อวาน/วันนี้ · สายของต้า (เมียน้อย/ชู้รัก/กิ๊ก) สุ่มแยกต่างหาก (ต้องมีผู้เล่นเป็นต้า) วันเดียวกับสายทั่วไปได้ */
+  if (d >= 3) {
+    const w = Math.floor((d - 3) / 3);
+    if (G.spw !== w) { G.spw = w; G.spd = 3 + w * 3 + rnd(3); G.tdy = 3 + w * 3 + rnd(3); }
+    if (d === G.spd) {
+      let pool = ['gik', 'yok', 'meni']; if (G.sl && d - G.sl[1] <= 1) pool = pool.filter(x => x !== G.sl[0]);
+      const sp = pool[rnd(pool.length)]; G.sl = [sp, d];
+      q.push({ at: 10 + Math.random() * (DAY_T - 55), k: 'sp', sp });
+    }
+    if (d === G.tdy && G.pl.some(p => p.c && isTa(p))) q.push({ at: 10 + Math.random() * (DAY_T - 55), k: 'sp', sp: ['t1', 't2', 't3'][rnd(3)] });
+  }
   return q.sort((a, b) => a.at - b.at);
 }
 function fire(e) {
+  if (e.k === 'sp') return spawnSp(e.sp);
   if (e.k === 'ac' && !G.ev.ac) { G.ev.ac = 1; toast('🥵 แอร์พัง! คนเยอะ ๆ ลูกค้าจะร้อนแล้วเดินหนี · ไปซ่อมที่แผงควบคุมข้างผนัง', 'r'); snd('bad'); return; }
   if (G.ev.lk.length >= 2) return;
   const act = [...WSLOT.slice(0, lv('wt') + 1), ...CSLOT.slice(0, lv('ct') + 1)];
@@ -191,8 +217,56 @@ function freeSlot(k) {
   for (let i = 0; i <= n; i++) if (!a[i] && !leaked(S[i][0], S[i][1])) return i;
   return -1;
 }
+function spawnSp(sp) {
+  if (G.cl || G.tut || G.cu.some(c => c.sp === sp)) return false;
+  if (sp[0] === 't' && !G.pl.some(p => p.c && isTa(p))) return false;
+  const c = { id: ++G.nid, x: DOOR[0] + rnd(7) - 3, y: DOOR[1], k: 'S', sp, pr: 1, pg: 0, bx: 0, w: 0, ar: 0, t: 'N', sk: 0, m: 0, ws: -1, cs: -1, qs: -1, q: 0, ht: 0, hot: 0, tx: DOOR[0], ty: DOOR[1], af: 0, sa: 0, sn: 3 + rnd(3), sc: 0, ds: 0, dt: 0, wp: [] };
+  if (sp === 'yok') {   /* วีไอพี: เข้าคิวและใช้บริการตามปกติ (ห่อ → รับฝาก) แต่ทิปสองเท่า */
+    c.k = Math.random() < 0.5 ? 'W' : 'C'; c.bx = c.k === 'C' ? 1 : 0; c.w = c.k === 'W' ? 1 : 0; c.t = ['E', 'R', 'N'][rnd(3)];
+    ban('👑 ลูกค้าวีไอพีเจ๊หยกมา!', 'y'); snd('horn');
+  } else if (sp === 'gik') { c.af = 1; c.wp = [[LOBBYP[rnd(5)][0], 440]]; ban('📞 ลูกค้าตัวปรี๊ดชื่อกุ๊กกิ๊กมา! ใครก็ได้จัดการด่วน', 'r'); snd('bad'); }
+  else if (sp === 'meni') { c.wp = [[334, 420], [334, 300], [300, 262]]; ban('📸 ลูกค้าตัวแสบเมนี่มาป่วน!', 'r'); snd('bad'); }
+  G.cu.push(c); G.spawned++; return true;
+}
+/* ความเคลื่อนไหวของลูกค้าพิเศษที่ไม่ใช่คิวปกติ (k = 'S') */
+function updS(c, dt) {
+  c.sa += dt;
+  if (c.ds) {   /* โดนไล่: รอสักครู่ให้พนักงานพูดจบ → ลูกค้าตอบแล้วเดินออก */
+    c.dt -= dt;
+    if (c.dt <= 0) { pop(c.x, c.y - 38, SHOO[c.sp][1], 'r', 2200); snd('bad'); leave(c, 0); }
+    return;
+  }
+  if (c.wp.length && c.ar) { const w = c.wp.shift(); c.tx = w[0]; c.ty = w[1]; return; }
+  const inRoom = c.y < FY - 6;
+  if (c.sp === 'meni' && !c.wp.length && c.ar && inRoom) { const q = ROOMP[rnd(ROOMP.length)]; if (Math.random() < dt * 0.5) { c.tx = q[0]; c.ty = q[1]; } }
+  if (c.sp !== 'meni' && !c.wp.length && c.ar && Math.random() < dt * 0.35) { const q = LOBBYP[rnd(LOBBYP.length)]; c.tx = q[0]; c.ty = q[1]; }
+  c.af = c.sp === 'gik' || (c.sp === 'meni' && inRoom) ? 1 : 0;
+  c.sn -= dt;
+  if (c.sp === 'gik' && c.sn <= 0) { c.sn = 4 + Math.random() * 3; pop(c.x, c.y - 40, ['ฮัลโหลลล~~ ได้ยินมั้ย!', 'ว่าไงนะะ?! พูดดังๆหน่อย!', 'ฮ่าๆๆ จริงดิ๊!'][rnd(3)], 'y', 2000); }
+  if (c.sp[0] === 't') {
+    if (c.sn <= 0) { c.sn = 4.5 + Math.random() * 2; pop(c.x, c.y - 40, 'ต้าอยู่ไหน?', 'y', 2000); }
+    if (c.sa >= TA_WAIT) { pop(c.x, c.y - 40, 'ไม่เจอต้า! ฮึ่ม!', 'r', 2200); pop(c.x, c.y - 54, '😠 ความพอใจ −' + TA_SAT + '%', 'r', 2200); addSat(-TA_SAT); snd('bad'); leave(c, 0); }
+  }
+  if (c.sp === 'meni' && inRoom && c.ar !== undefined && c.sa > 0) {
+    c.sc -= dt;
+    if (c.sc <= 0) { c.sc = 2; G.sc -= SELFIE; G.stats.fine += SELFIE; pop(c.x, c.y - 40, '📸 แชะ! −฿' + SELFIE, 'r', 1500); snd('bad'); }
+  }
+}
+function shoo(i, cid) {
+  const p = G.pl[i], c = G.cu.find(q => q.id === cid);
+  if (!p || !c || c.k !== 'S' || c.ds) return;
+  if (c.sp[0] === 't' && !isTa(p)) { pop(p.x, p.y - 28, 'ต้าเท่านั้นที่ไล่ได้!', 'r'); snd('bad'); return; }
+  c.ds = 1; c.dt = 1.1; c.wp = []; c.tx = c.x; c.ty = c.y; c.af = 0;
+  pop(p.x, p.y - 30, SHOO[c.sp][0], 'g', 2200); snd('ok');
+}
+function spNear(p) {
+  let b = null, bd = SHOO_R;
+  for (const c of G.cu) { if (c.k !== 'S' || c.ds) continue; const d = Math.hypot(c.x - p.x, (c.y - p.y) * 1.2); if (d < bd) { bd = d; b = c; } }
+  return b;
+}
+function spSt(c) { return { id: 'S' + c.id, k: 'shoo', cid: c.id, r: [c.x - 7, c.y - 12, 14, 12] }; }
 function spawn(force) {
-  if (G.cu.filter(c => c.k !== 'L').length >= LOBBY_MAX) return false;
+  if (G.cu.filter(c => c.k !== 'L' && c.k !== 'S').length >= LOBBY_MAX) return false;
   const k = force ? force.k : (Math.random() < 0.55 ? 'W' : 'C'), q = Math.random(), t = force ? force.t : (q < 0.3 ? 'E' : q < 0.6 ? 'R' : 'N');
   G.cu.push({ id: ++G.nid, x: DOOR[0] + rnd(7) - 3, y: DOOR[1], k, pr: 1, pg: 0, bx: k === 'C' ? 1 : 0, w: k === 'W' ? 1 : 0, ar: 0, t, sk: rnd(6), m: 0, ws: -1, cs: -1, qs: -1, q: 0, ht: 0, hot: 0, tx: DOOR[0], ty: DOOR[1] });
   G.spawned++; return true;
@@ -217,9 +291,10 @@ function updC(c, dt, crowd) {
   const dx = c.tx - c.x, dy = c.ty - c.y, d = Math.hypot(dx, dy);
   if (d > 1.2) { const v = Math.min(d, 42 * dt); c.x += dx / d * v; c.y += dy / d * v; c.ar = 0; } else c.ar = 1;
   if (c.k === 'L') return;
+  if (c.k === 'S') return updS(c, dt);
   if (!G.tut) {
     const hot = G.ev.ac && crowd >= 3;
-    c.pr -= dt / Math.max(38, 56 - G.day * 2 - G.el / 12) * (hot ? 1 + 0.08 * (crowd - 2) : 1);
+    c.pr -= dt / Math.max(38, 56 - G.day * 2 - G.el / 12) * (hot ? 1 + 0.08 * (crowd - 2) : 1) * (G.loud ? SP_LOUD : 1);
     c.ht = Math.max(0, Math.min(1, c.ht + (hot ? 0.012 * (crowd - 2) : G.ev.ac ? -0.02 : -0.05) * dt));
     if (c.ht >= 1) return leave(c, -1, 1);
     if (c.pr <= 0) return leave(c, -1);
@@ -256,6 +331,7 @@ function repair(id, p) {
 function look(p, s) {
   const h = p.h, bad = h ? h[0] + '✗' : 'hand', ps = pusher(p), c = G.cart;
   if (!s) return ['hand', 0];
+  if (s.k === 'shoo') { const c = G.cu.find(q => q.id === s.cid); return ['shoo', c && c.sp[0] === 't' && !isTa(p) ? 0 : 1]; }
   if (s.k === 'cart') {
     if (!c || ps) return ['hand', 0];
     if (isBags(h)) return c.b.length < cartCap() ? ['cartin', 1] : ['cartx', 0];
@@ -303,10 +379,12 @@ function floorNear(x, y) {
 /* เป้าหมายของปุ่มทำงาน: สถานีที่ใกล้สุด · แต่ถ้าสถานีนั้นทำอะไรไม่ได้ และมีของบนพื้นอยู่ใกล้ ๆ ที่เก็บได้ → เก็บของจากพื้นแทน */
 function tgt(p) {
   const s = near(p.x, p.y), f = G.fl && G.fl.length ? floorNear(p.x, p.y) : null, ct = G.cart ? cartReach(p) : null, sv = s && look(p, s)[1];
+  const sc = G.cu && G.cu.length ? spNear(p) : null;
+  if (sc && !sv) return spSt(sc);
   if (sv) return s;
   if (f) { const fs = flSt(f); if (look(p, fs)[1]) return fs; }
   if (ct && look(p, ct)[1]) return ct;
-  return s || ct;
+  return s || ct || sc && spSt(sc) || null;
 }
 /* ทิ้งของที่ถืออยู่ลงพื้น: ห้องคัดแยก/ท่ารถ = เสียเงิน · หน้าร้านต่อหน้าลูกค้า = เสียเงินมากกว่า + ความพอใจลด (ของยังอยู่บนพื้น เดินกลับมาเก็บได้) */
 /* จอดรถเข็นไว้ตรงที่ยืนอยู่ (ฟรี ไม่เสียค่าปรับ) ใครมาใช้ต่อก็ได้ */
@@ -338,6 +416,7 @@ function press(i) {
   const p = G.pl[i], s = tgt(p), h = p.h, ps = pusher(p), ca = G.cart;
   const bad = t => { pop(p.x, p.y - 26, t, 'r'); snd('bad'); };
   if (!s) return;
+  if (s.k === 'shoo') return shoo(i, s.cid);
   if (s.k === 'cart') {
     if (!ca || ps) return;
     if (isBags(h)) {
@@ -412,8 +491,10 @@ function holdAct(i, dt) {
       c.pg += dt * C.serve / SERVT[lv('cs')];
       if (c.pg >= 1) {
         const f = FEE[c.t] / 2, v = Math.round(f * (0.7 + 0.3 * c.pr)) + (c.w ? 10 : 0), tip = !G.tut && c.pr > 0.5 ? Math.round(f * 0.8 * (c.pr - 0.5) / 0.5) : 0;
-        income(v + tip); G.stats.sv++; G.stats.tip += tip; pop(c.x, c.y - 34, '+' + v + '฿', 'g'); snd('coin'); tev('serve');
-        if (tip > 0) pop(c.x, c.y - 48, '💰 ทิป +' + tip, 'y');
+        const tp = c.sp === 'yok' ? tip * 2 : tip;
+        income(v + tp); G.stats.sv++; G.stats.tip += tp; pop(c.x, c.y - 34, '+' + v + '฿', 'g'); snd('coin'); tev('serve');
+        if (c.sp === 'yok' && tip > 0) { pop(c.x, c.y - 52, 'ถูกใจเจ๊ ให้ติ๊บ!', 'y', 2200); pop(c.x, c.y - 66, '👑 ทิปสองเท่า +' + tp, 'y', 2200); }
+        else if (tp > 0) pop(c.x, c.y - 48, '💰 ทิป +' + tp, 'y');
         addSat(c.pr > 0.5 ? 2 : 1);
         G.cp[s.i] = c.t; leave(c, 1); feedBelt();
       }
@@ -436,7 +517,7 @@ function endDay() {
   for (const t of 'ERN') left += G.bg[t][0] + G.bg[t][1];
   if (G.cart) left += G.cart.b.length * CAP;
   for (const f of G.fl) left += isParcel(f.t) ? 1 : isBags(f.t) ? f.t.length * CAP : 0;
-  S.left = left; S.late = G.cu.filter(c => c.k !== 'L').length;
+  S.left = left; S.late = G.cu.filter(c => c.k !== 'L' && c.k !== 'S').length;
   if (S.ms === 0) addSat(4);
   if (G.day % 7 === 0) { S.bill = billAmt(); G.sc -= S.bill; }
   if (G.ph === 'play') { G.ph = 'shop'; snd('end'); }
@@ -467,7 +548,9 @@ function step(dt) {
   /* รถเข็นที่มีคนเข็น: วิ่งตามหน้าคนเข็น (ถ้าคนเข็นหลุดจากเกม รถจะจอดอยู่ตรงนั้น) */
   const ca = G.cart;
   if (ca && ca.by >= 0) { const q = G.pl[ca.by]; if (!q || !q.c) ca.by = -1; else { const t = cartTarget(q); ca.x = r1(t[0]); ca.y = r1(t[1]); ca.f = q.f < 0 ? -1 : 1; } }
-  const crowd = G.cu.filter(c => c.k !== 'L').length;
+  const crowd = G.cu.filter(c => c.k !== 'L' && c.k !== 'S').length;
+  G.loud = G.cu.some(c => c.sp === 'gik' && c.k === 'S' && !c.ds);
+  if (G.cl) G.cu.forEach(c => { if (c.k === 'S') leave(c, 0); });
   assign(); G.cu.forEach(c => updC(c, dt, crowd)); G.cu = G.cu.filter(c => !(c.k === 'L' && c.ar));
   if (G.ph !== 'play') return;
   feedBelt(); stepBelt(dt);
@@ -529,7 +612,7 @@ function snap() {
     ac: G.ev.ac, lk: G.ev.lk.map(l => [l.id, r1(l.x), r1(l.y)]),
     pl: G.pl.map(p => p.c ? [r1(p.x), r1(p.y), p.h, p.f, p.mv, p.ch | 0] : 0),
     ca: G.cart ? [r1(G.cart.x), r1(G.cart.y), G.cart.f, G.cart.b, G.cart.by] : 0,
-    cu: G.cu.map(c => [c.id, r1(c.x), r1(c.y), c.k, Math.round(c.pr * 100), Math.round(c.pg * 100), c.t, c.sk, c.bx, c.m, c.ws, c.cs, c.ar, Math.round(c.ht * 100), c.q ? 1 : 0, c.hot ? 1 : 0]),
+    cu: G.cu.map(c => [c.id, r1(c.x), r1(c.y), c.k, Math.round(c.pr * 100), Math.round(c.pg * 100), c.t, c.sk, c.bx, c.m, c.ws, c.cs, c.ar, Math.round(c.ht * 100), c.q ? 1 : 0, c.hot ? 1 : 0, c.sp || 0, c.af ? 1 : 0, c.ds ? 1 : 0]),
     cp: G.cp, bg: [G.bg.E[0], G.bg.E[1], G.bg.R[0], G.bg.R[1], G.bg.N[0], G.bg.N[1]], tr: [G.tr.st, r1(G.tr.t), G.tr.ld], bl: G.belt.map(b => [b.l, b.t, r1(b.d)]), bq: G.bq, fl: G.fl.map(f => [f.id, f.x, f.y, f.t]) };
 }
 function load(m, me) {
@@ -549,7 +632,7 @@ function load(m, me) {
     let c = G._cm.get(a[0]);
     if (!c) { c = { id: a[0], x: a[1], y: a[2] }; G._cm.set(a[0], c); }
     seen.add(a[0]);
-    c.tx = a[1]; c.ty = a[2]; c.k = a[3]; c.pr = a[4] / 100; c.pg = a[5] / 100; c.t = a[6]; c.sk = a[7]; c.bx = a[8]; c.m = a[9]; c.ws = a[10]; c.cs = a[11]; c.ar = a[12]; c.ht = a[13] / 100; c.q = a[14]; c.hot = a[15];
+    c.tx = a[1]; c.ty = a[2]; c.k = a[3]; c.pr = a[4] / 100; c.pg = a[5] / 100; c.t = a[6]; c.sk = a[7]; c.bx = a[8]; c.m = a[9]; c.ws = a[10]; c.cs = a[11]; c.ar = a[12]; c.ht = a[13] / 100; c.q = a[14]; c.hot = a[15]; c.sp = a[16] || ''; c.af = a[17]; c.ds = a[18];
     return c;
   });
   for (const id of [...G._cm.keys()]) if (!seen.has(id)) G._cm.delete(id);
@@ -557,7 +640,7 @@ function load(m, me) {
   G.cp = m.cp; G.bg = { E: [m.bg[0], m.bg[1]], R: [m.bg[2], m.bg[3]], N: [m.bg[4], m.bg[5]] }; G.tr = { st: m.tr[0], t: m.tr[1], ld: m.tr[2] };
   G.belt = m.bl.map(a => ({ l: a[0], t: a[1], d: a[2] })); G.bq = m.bq; G.fl = (m.fl || []).map(a => ({ id: a[0], x: a[1], y: a[2], t: a[3] }));
 }
-g.Sim = { W, H, CAP, DAY_T, FY, SY, ST, WALLS, DROP, HAND, CART_HOME, CHARS, LVMAX, chTaken, freeChar, setChar, pusher, cartTarget, look, tgt, drop, WSLOT, CSLOT, QS, DOOR, NAME, FEE, FIX, FINE, SAT_WARN, SAT_OVER, UPG, CART, VMAX, BELT, blocked, near, steer, reset, lobby, step, input, press, hint, snap, load, wc, cc, buy, nextDay, active, lv, stn, isBags, isParcel, bagValue, billAmt, nextBill,
+g.Sim = { W, H, CAP, DAY_T, FY, SY, ST, WALLS, DROP, HAND, CART_HOME, CHARS, LVMAX, chTaken, freeChar, setChar, pusher, cartTarget, look, tgt, drop, WSLOT, CSLOT, QS, DOOR, NAME, FEE, FIX, FINE, SAT_WARN, SAT_OVER, SPN, UPG, CART, VMAX, BELT, blocked, near, steer, reset, lobby, step, input, press, hint, snap, load, wc, cc, buy, nextDay, active, lv, stn, isBags, isParcel, bagValue, billAmt, nextBill,
   get G() { return G; }, set emit(f) { emit = f; } };
 if (typeof module !== 'undefined') module.exports = g.Sim;
 })(typeof window !== 'undefined' ? window : globalThis);

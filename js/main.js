@@ -53,7 +53,8 @@ if (!g.UI.fs.can) $('bf').style.display = 'none';
 
 /* ---------- เหตุการณ์ (เสียง/ตัวเลขลอย) ---------- */
 function onEv(e) {
-  if (e.k === 'pop') g.UI.pop(e.x, e.y, e.t, e.c);
+  if (e.k === 'pop') g.UI.pop(e.x, e.y, e.t, e.c, e.d);
+  else if (e.k === 'ban') g.UI.ban(e.t, e.c);
   else if (e.k === 'snd') g.Sfx.play(e.n);
   else if (e.k === 'tut') tutN++;
   else if (e.k === 'toast') g.UI.toast(e.t, e.c);

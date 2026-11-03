@@ -44,12 +44,18 @@ U.place = function () {
   });
   U.pops.forEach(o => { o.e.style.left = clamp((o.x - cam) * s, 16, W - 16) + 'px'; o.e.style.top = (o.y - camY) * s + 'px'; });
 };
-U.pop = function (x, y, t, c) {
+U.pop = function (x, y, t, c, d) {
   if (x < U.cam - 10 || x > U.cam + U.vw + 10 || y < U.camY - 10 || y > U.camY + U.vh + 40) return;
   const P = $('pops'); while (U.pops.length > 14) U.pops.shift().e.remove();
-  const e = document.createElement('div'); e.className = 'pop ' + (c || 'y'); e.textContent = t; e.style.fontSize = Math.max(11, 4.6 * U.s) + 'px';
+  const e = document.createElement('div'); e.className = 'pop ' + (c || 'y'); e.textContent = t; e.style.fontSize = Math.max(11, 4.6 * U.s) + 'px'; if (d) e.style.animationDuration = d / 1000 + 's';
   const o = { e, x, y }; U.pops.push(o); P.appendChild(e); U.place();
-  setTimeout(() => { e.remove(); const i = U.pops.indexOf(o); if (i >= 0) U.pops.splice(i, 1); }, 1300);
+  setTimeout(() => { e.remove(); const i = U.pops.indexOf(o); if (i >= 0) U.pops.splice(i, 1); }, d || 1300);
+};
+/* คัทซีนข้อความกลางจอ (ลูกค้าพิเศษมา) */
+let banT = 0;
+U.ban = function (t, c) {
+  const e = $('ban'); if (!e) return; e.textContent = t; e.className = c === 'r' ? 'r' : ''; e.style.display = 'block'; e.style.animation = 'none'; void e.offsetWidth; e.style.animation = '';
+  clearTimeout(banT); banT = setTimeout(() => { e.style.display = 'none'; }, 3000);
 };
 let toastT = 0;
 U.toast = function (t, c) {
@@ -183,7 +189,7 @@ function pickPaint(T) {
 function pickLayout() {
   const e = $('pk'), cd = e && e.parentNode; if (!e) return;
   const w = Math.min(innerWidth * 0.94 - 44, 1100), cw = (w - 40) / 5;
-  let k = Math.max(1, Math.min(4, Math.floor((cw - 14) / 32)));
+  let k = Math.max(1, Math.min(3, Math.floor((cw - 14) / 32)));
   for (; k >= 1; k--) { e.style.setProperty('--k', k); if (cd.scrollHeight <= cd.clientHeight + 1 && cd.scrollWidth <= cd.clientWidth + 1) break; }
   if (k < 1) e.style.setProperty('--k', 1);
 }
@@ -192,7 +198,7 @@ function pickRender() {
   if (pkTaken(PK.sel) >= 0) { PK.sel = pkFree(PK.sel); PK.warn = PK.warn || 'มีคนเลือกตัวที่คุณเลือกไปก่อนแล้ว'; }
   const cards = S.CHARS.map((c, i) => {
     const lk = c.secret && lockPao, tk = lk ? -1 : pkTaken(i);
-    return `<div class="pc${i === PK.sel ? ' sel' : ''}${lk ? ' lk' : ''}${tk >= 0 ? ' tk' : ''}${c.secret && PK.fresh ? ' nw' : ''}" onclick="UI.pk(${i})"><canvas width=32 height=34 data-c=${i}></canvas><b>${lk ? '???' : c.name}</b>` +
+    return `<div class="pc${i === PK.sel ? ' sel' : ''}${lk ? ' lk' : ''}${tk >= 0 ? ' tk' : ''}${c.secret && PK.fresh ? ' nw' : ''}" onclick="UI.pk(${i})"><canvas width=32 height=30 data-c=${i}></canvas><b>${lk ? '???' : c.name}</b>` +
       (lk ? '<div class=lkm>🔒 ใส่รหัส</div>' : tk >= 0 ? `<div class=tkm style="background:${CAPC[tk]}">ผู้เล่น ${tk + 1}<br>เลือกแล้ว</div>` : '<div class=ps>' + PIPL.map((l, j) => `<span>${l}</span><em>${Array.from({ length: S.LVMAX }, (_, k) => '<i' + (k < c.lv[j] ? ' class=on' : '') + '></i>').join('')}</em>`).join('') + '</div>') + '</div>';
   }).join('');
   U.ov(`<div id=pk><h2>🎭 เลือกตัวละคร</h2><div class=pcs>${cards}</div>
